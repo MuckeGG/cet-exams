@@ -1,0 +1,238 @@
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import ExamBrowser from './components/ExamBrowser'
+import ExamDetail from './components/ExamDetail'
+import VocabularyBook from './components/VocabularyBook'
+import ErrorBook from './components/ErrorBook'
+
+// Navigation Component
+const Navigation = ({ examType, onExamTypeChange }) => {
+  const location = useLocation()
+  const isHome = location.pathname === '/'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  return (
+    <nav className="border-b border-black">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-14">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 border-2 border-black rounded flex items-center justify-center">
+              <span className="text-xs font-bold">CET</span>
+            </div>
+            <span className="font-bold text-sm sm:text-base">大学英语四六级考试真题</span>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-6">
+            <Link
+              to="/"
+              className={`text-sm ${isHome ? 'font-bold' : 'text-neutral-500'}`}
+            >
+              首页
+            </Link>
+            <Link
+              to="/vocabulary"
+              className={`text-sm ${location.pathname === '/vocabulary' ? 'font-bold' : 'text-neutral-500'}`}
+            >
+              生词本
+            </Link>
+            <Link
+              to="/errors"
+              className={`text-sm ${location.pathname === '/errors' ? 'font-bold' : 'text-neutral-500'}`}
+            >
+              错题本
+            </Link>
+            {/* CET-4 / CET-6 Toggle */}
+            <div className="flex items-center gap-1 bg-neutral-100 rounded p-0.5">
+              <button
+                onClick={() => onExamTypeChange('CET-4')}
+                className={`px-3 py-1 text-sm rounded transition-colors ${
+                  examType === 'CET-4'
+                    ? 'bg-black text-white'
+                    : 'text-neutral-600 hover:text-black'
+                }`}
+              >
+                CET-4
+              </button>
+              <button
+                onClick={() => onExamTypeChange('CET-6')}
+                className={`px-3 py-1 text-sm rounded transition-colors ${
+                  examType === 'CET-6'
+                    ? 'bg-black text-white'
+                    : 'text-neutral-600 hover:text-black'
+                }`}
+              >
+                CET-6
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded hover:bg-neutral-100"
+            aria-label="菜单"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-4 border-t border-neutral-200">
+            <div className="flex flex-col gap-3">
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm ${isHome ? 'font-bold' : 'text-neutral-500'}`}
+              >
+                首页
+              </Link>
+              <Link
+                to="/vocabulary"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm ${location.pathname === '/vocabulary' ? 'font-bold' : 'text-neutral-500'}`}
+              >
+                生词本
+              </Link>
+              <Link
+                to="/errors"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm ${location.pathname === '/errors' ? 'font-bold' : 'text-neutral-500'}`}
+              >
+                错题本
+              </Link>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-neutral-500">考试类型:</span>
+                <div className="flex gap-1 bg-neutral-100 rounded p-0.5">
+                  <button
+                    onClick={() => { onExamTypeChange('CET-4'); setMobileMenuOpen(false) }}
+                    className={`px-3 py-1 text-sm rounded transition-colors text-center ${
+                      examType === 'CET-4'
+                        ? 'bg-black text-white'
+                        : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    CET-4
+                  </button>
+                  <button
+                    onClick={() => { onExamTypeChange('CET-6'); setMobileMenuOpen(false) }}
+                    className={`px-3 py-1 text-sm rounded transition-colors text-center ${
+                      examType === 'CET-6'
+                        ? 'bg-black text-white'
+                        : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    CET-6
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  )
+}
+
+// Home Page Component
+const HomePage = ({ examType, onExamTypeChange }) => {
+  // Calculate days until June 13, 2026
+  const targetDate = new Date('2026-06-13')
+  const today = new Date()
+  const diffTime = targetDate - today
+  const days = diffTime / (1000 * 60 * 60 * 24)
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Navigation examType={examType} onExamTypeChange={onExamTypeChange} />
+
+      {/* Hero */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-24 lg:py-32 flex flex-col items-center">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight mb-4 text-center">
+          大学英语四六级
+        </h1>
+        <p className="text-neutral-500 text-base md:text-lg mb-6 md:mb-8 text-center">
+          收集了2019-2025的大学英语四六级真题
+        </p>
+
+        {/* Buttons and Countdown */}
+        <div className="flex flex-col items-center gap-3 mb-6 md:mb-8 w-full max-w-[200px] sm:max-w-2xl sm:flex-row sm:flex-wrap sm:justify-center">
+          <Link
+            to="/exam/cet4"
+            className={`w-full sm:w-auto px-4 sm:px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-medium text-center transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+              examType === 'CET-4'
+                ? 'bg-black text-white'
+                : 'bg-white text-black border border-black'
+            }`}
+          >
+            CET-4真题
+          </Link>
+          <Link
+            to="/exam/cet6"
+            className={`w-full sm:w-auto px-4 sm:px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-medium text-center transition-all duration-200 hover:scale-105 hover:shadow-lg ${
+              examType === 'CET-6'
+                ? 'bg-black text-white'
+                : 'bg-white text-black border border-black'
+            }`}
+          >
+            CET-6真题
+          </Link>
+
+          {/* Countdown */}
+          <div className="border-2 border-black rounded-2xl px-3 sm:px-4 py-2 text-center flex items-center gap-2 sm:gap-3 transition-transform duration-300 hover:scale-[1.02] w-full sm:w-auto justify-center" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
+            <span className="text-xs sm:text-sm font-bold">距下次CET考试还有</span>
+            <span className="text-xl sm:text-2xl font-bold">{days.toFixed(1)}</span>
+            <span className="text-xs sm:text-sm font-bold">天</span>
+          </div>
+        </div>
+
+        {/* QR Code - below buttons, centered */}
+        <div className="border border-black rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-5 transition-transform duration-300 hover:scale-[1.02] relative w-full max-w-lg sm:max-w-xl" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.35)' }}>
+          <p className="absolute top-2 right-3 text-xs sm:text-sm font-bold text-neutral-400 opacity-60">我是广告，不给你关哈哈哈</p>
+          <img
+            src="/作者二维码.jpg"
+            alt="作者二维码"
+            className="w-32 sm:w-40 flex-shrink-0 rounded-lg"
+          />
+          <div className="text-center sm:text-left">
+            <p className="text-lg sm:text-2xl font-bold text-red-600 mb-2">需要打印试卷吗？</p>
+            <p className="text-base sm:text-xl font-bold text-neutral-800">广州大学（桂花岗校区）打印</p>
+            <p className="text-sm sm:text-lg font-bold text-neutral-700 mt-1">黑白单面 0.2元/张</p>
+            <p className="text-sm sm:text-lg font-bold text-neutral-700">黑白双面 0.3元/张</p>
+            <p className="text-sm sm:text-lg font-bold text-neutral-700">可配送到宿舍，或自取</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  )
+}
+
+// App with Router
+import { useState } from 'react'
+
+function App() {
+  const [examType, setExamType] = useState('CET-4')
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage examType={examType} onExamTypeChange={setExamType} />} />
+        <Route path="/exam/:type" element={<ExamBrowser setExamType={setExamType} />} />
+        <Route path="/exam/:type/:id" element={<ExamDetail />} />
+        <Route path="/vocabulary" element={<VocabularyBook />} />
+        <Route path="/errors" element={<ErrorBook />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App
