@@ -14,6 +14,7 @@ dist-ssr
 public/
 四级真题/
 六级真题/
+english-vocabulary-master/
 
 # Editor directories and files
 .vscode/*
