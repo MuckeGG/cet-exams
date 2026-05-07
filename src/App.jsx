@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { assetUrl } from './utils/assetUrl'
 import ExamBrowser from './components/ExamBrowser'
@@ -291,8 +292,6 @@ const HomePage = ({ examType, onExamTypeChange }) => {
 }
 
 // App with Router
-import { useState, useEffect } from 'react'
-
 function App() {
   const [examType, setExamType] = useState('CET-4')
 
