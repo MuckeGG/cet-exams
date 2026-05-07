@@ -203,7 +203,11 @@ const HomePage = ({ examType, onExamTypeChange }) => {
   useEffect(() => {
     fetch('/api/visitor')
       .then(r => r.json())
-      .then(data => setVisitorStats({ today: data.today, total: data.total }))
+      .then(data => {
+        if (data && typeof data.today === 'number') {
+          setVisitorStats({ today: data.today, total: data.total })
+        }
+      })
       .catch(() => {})
   }, [])
 
