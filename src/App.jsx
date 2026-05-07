@@ -190,50 +190,6 @@ const Navigation = ({ examType, onExamTypeChange }) => {
   )
 }
 
-// 访问量统计（基于日期种子的模拟数据）
-const VISITOR_KEY = 'cet_visitor_data'
-
-const getVisitorStats = () => {
-  try {
-    const stored = localStorage.getItem(VISITOR_KEY)
-    const data = stored ? JSON.parse(stored) : { totalBase: 8200, firstVisit: null }
-
-    const today = new Date()
-    const todayStr = today.toISOString().split('T')[0]
-
-    // 首次访问记录
-    if (!data.firstVisit) {
-      data.firstVisit = todayStr
-    }
-
-    // 基于日期的种子随机数，每天生成稳定的数字
-    const seed = (d) => {
-      const h = d.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0)
-      return Math.abs(Math.sin(h) * 10000) % 1
-    }
-
-    // 计算从首次访问到今天的天数
-    const daysSinceFirst = Math.max(1, Math.floor((today - new Date(data.firstVisit)) / 86400000) + 1)
-
-    // 今日访问量：基于日期种子，范围 30-120
-    const todaySeed = seed(todayStr)
-    const todayVisits = Math.floor(30 + todaySeed * 90)
-
-    // 累计访问量：基础值 + 天数增长 + 每日随机增量
-    let totalVisits = data.totalBase
-    for (let i = 0; i < daysSinceFirst; i++) {
-      const d = new Date(new Date(data.firstVisit).getTime() + i * 86400000)
-      const ds = d.toISOString().split('T')[0]
-      totalVisits += Math.floor(30 + seed(ds) * 90)
-    }
-
-    localStorage.setItem(VISITOR_KEY, JSON.stringify(data))
-    return { todayVisits, totalVisits }
-  } catch {
-    return { todayVisits: 56, totalVisits: 8756 }
-  }
-}
-
 // Home Page Component
 const HomePage = ({ examType, onExamTypeChange }) => {
   // Calculate days until June 13, 2026
@@ -241,8 +197,6 @@ const HomePage = ({ examType, onExamTypeChange }) => {
   const today = new Date()
   const diffTime = targetDate - today
   const days = diffTime / (1000 * 60 * 60 * 24)
-
-  const visitorStats = getVisitorStats()
 
   return (
     <div className="min-h-screen bg-white">
@@ -288,22 +242,13 @@ const HomePage = ({ examType, onExamTypeChange }) => {
           </div>
         </div>
 
-        {/* Visitor Stats */}
-        <div className="flex items-center justify-center gap-6 sm:gap-10 mb-6 md:mb-8 text-neutral-400">
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            <span className="text-sm">今日 <span className="font-bold text-neutral-600">{visitorStats.todayVisits}</span></span>
-          </div>
-          <div className="w-px h-4 bg-neutral-300" />
-          <div className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <span className="text-sm">累计 <span className="font-bold text-neutral-600">{visitorStats.totalVisits.toLocaleString()}</span></span>
-          </div>
+        {/* Visitor Counter */}
+        <div className="mb-6 md:mb-8">
+          <img
+            src="https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FMuckeGG%2Fcet-exams&title_bg=%23555555&title=%E8%AE%BF%E9%97%AE&edge_flat=false"
+            alt="访客计数"
+            className="h-5 mx-auto"
+          />
         </div>
 
         {/* QR Code - below buttons, centered */}
