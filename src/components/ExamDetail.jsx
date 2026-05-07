@@ -5,6 +5,13 @@ import { getPaperById } from '../data/examPapers'
 import { gradeAnswers, calculateScore, saveGradingResult, getGradingResult } from '../utils/grading'
 import { recordMultipleMistakes } from '../utils/errorTracking'
 import { addWord } from '../utils/vocabulary'
+import { lookupWord } from '../utils/dictionary'
+import { getAnswers, hasAnswers } from '../data/answers'
+import { getWritingData } from '../data/writing'
+import { getTranslationData } from '../data/translation'
+import { useAnnotation } from '../hooks/useAnnotation'
+import AnnotationCanvas from './AnnotationCanvas'
+import AnnotationToolbar from './AnnotationToolbar'
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
@@ -45,6 +52,22 @@ const ExamDetail = () => {
   const [userAnswers, setUserAnswers] = useState({ listening: [], reading: [], writing: '', translation: '' })
   const [gradingResult, setGradingResult] = useState(null)
 
+  // 文本选择状态
+  const [selectionPopup, setSelectionPopup] = useState(null) // { x, y, text, context }
+
+  // 写作和翻译数据
+  const writingData = paper ? getWritingData(paper.id) : null
+  const translationData = paper ? getTranslationData(paper.id) : null
+  const [showModelEssay, setShowModelEssay] = useState(false)
+  const [showTranslation, setShowTranslation] = useState(false)
+
+  // 标注系统
+  const {
+    activeTool, setActiveTool, strokeColor, setStrokeColor,
+    strokeWidth, setStrokeWidth, pageStrokes, isDrawingMode,
+    addStroke, undo, clearAllAnnotations, canUndo, hasAnnotations
+  } = useAnnotation(paper?.id, selectedSet, pdfScale)
+
   // Load saved progress when set changes
   useEffect(() => {
     if (paper) {
@@ -67,6 +90,8 @@ const ExamDetail = () => {
     setNumPages(numPages)
   }
 
+  const saveTimerRef = useRef(null)
+
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
@@ -74,38 +99,30 @@ const ExamDetail = () => {
     const pct = maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : (scrollTop > 0 ? 100 : 0)
     setProgress(pct)
     if (paper) {
-      saveProgress(paper.id, selectedSet, pct)
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => {
+        saveProgress(paper.id, selectedSet, pct)
+      }, 1000)
     }
   }, [paper, selectedSet])
 
-  // Poll scroll position for reliability
-  useEffect(() => {
-    let rafId
-    const tick = () => {
-      handleScroll()
-      rafId = requestAnimationFrame(tick)
-    }
-    rafId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafId)
-  }, [handleScroll])
-
-  // Listen to window scroll as fallback
-  useEffect(() => {
-    const onScroll = () => {
-      console.log('window scroll!')
-      handleScroll()
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [handleScroll])
-
-  // Use wheel event to trigger scroll tracking
+  // Throttled scroll tracking + close selection popup on scroll
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const onWheel = () => handleScroll()
-    el.addEventListener('wheel', onWheel, { passive: true })
-    return () => el.removeEventListener('wheel', onWheel)
+    let ticking = false
+    const onScroll = () => {
+      setSelectionPopup(null)
+      if (!ticking) {
+        ticking = true
+        requestAnimationFrame(() => {
+          handleScroll()
+          ticking = false
+        })
+      }
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
   }, [handleScroll])
 
   if (!paper) {
@@ -122,6 +139,7 @@ const ExamDetail = () => {
   }
 
   const currentSet = paper.sets?.[selectedSet]
+  const answers = getAnswers(paper.id, selectedSet)
 
   // 选择答案
   const handleSelectAnswer = (section, index, value) => {
@@ -139,12 +157,12 @@ const ExamDetail = () => {
 
   // 提交批改
   const handleSubmitGrading = () => {
-    if (!currentSet?.answers) {
+    if (!answers) {
       alert('暂无答案数据')
       return
     }
 
-    const results = gradeAnswers(userAnswers, currentSet.answers)
+    const results = gradeAnswers(userAnswers, answers)
     const score = calculateScore(results)
     const totalScore = calculateScore(results)
 
@@ -165,7 +183,7 @@ const ExamDetail = () => {
             type: '听力',
             questionNum: i + 1,
             userAnswer: userAnswers.listening[i] || '未答',
-            correctAnswer: currentSet.answers.listening[i]
+            correctAnswer: answers.listening[i]
           })
         }
       })
@@ -181,7 +199,7 @@ const ExamDetail = () => {
             type: '阅读',
             questionNum: i + 1,
             userAnswer: userAnswers.reading[i] || '未答',
-            correctAnswer: currentSet.answers.reading[i]
+            correctAnswer: answers.reading[i]
           })
         }
       })
@@ -196,14 +214,56 @@ const ExamDetail = () => {
   }
 
   // 添加到生词本
-  const handleAddToVocabulary = (word) => {
-    const result = addWord(word, '', paper.id)
+  const handleAddToVocabulary = async (word, context = '') => {
+    // 先查询词典
+    const dictData = await lookupWord(word)
+    const result = addWord(word, context, paper.id, dictData)
     if (result.success) {
-      alert(`"${word}" 已添加到生词本`)
+      const msg = dictData?.definitions?.[0]
+        ? `"${word}" 已添加到生词本\n${dictData.phonetic || ''}\n${dictData.definitions[0].definition}`
+        : `"${word}" 已添加到生词本`
+      alert(msg)
     } else {
       alert(result.message)
     }
+    setSelectionPopup(null)
   }
+
+  // 处理PDF文本选择
+  const handleTextSelection = useCallback((e) => {
+    const selection = window.getSelection()
+    const text = selection?.toString().trim()
+    if (!text || text.length < 2 || text.length > 50) {
+      setSelectionPopup(null)
+      return
+    }
+    // 只选择英文单词
+    if (!/^[a-zA-Z\s'-]+$/.test(text)) {
+      setSelectionPopup(null)
+      return
+    }
+    // 获取选区位置
+    const range = selection.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    const containerRect = scrollRef.current?.getBoundingClientRect()
+    if (!containerRect) return
+
+    // 提取上下文句子
+    let context = ''
+    try {
+      const parentText = range.startContainer.parentElement?.textContent || ''
+      const start = Math.max(0, parentText.lastIndexOf('.', range.startOffset) + 1)
+      const end = parentText.indexOf('.', range.endOffset)
+      context = parentText.slice(start, end === -1 ? undefined : end + 1).trim()
+    } catch {}
+
+    setSelectionPopup({
+      x: rect.left + rect.width / 2 - containerRect.left,
+      y: rect.top - containerRect.top - 10,
+      text: text.split(/\s+/)[0], // 取第一个单词
+      context
+    })
+  }, [])
 
   // 重新答题
   const handleRetry = () => {
@@ -215,7 +275,7 @@ const ExamDetail = () => {
   const correctListening = gradingResult?.results?.listening?.filter(r => r).length || 0
   const correctReading = gradingResult?.results?.reading?.filter(r => r).length || 0
   const totalListening = gradingResult?.results?.listening?.length || 25
-  const totalReading = gradingResult?.results?.reading?.length || 30
+  const totalReading = gradingResult?.results?.reading?.length || 20
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -240,7 +300,7 @@ const ExamDetail = () => {
             </div>
             <div className="flex items-center gap-2 pb-1 sm:pb-0">
               {/* 模式切换按钮 */}
-              {mode === 'view' && currentSet?.answers && (
+              {mode === 'view' && hasAnswers(paper.id, selectedSet) && (
                 <button
                   onClick={() => setMode('answer')}
                   className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
@@ -350,19 +410,20 @@ const ExamDetail = () => {
                       <div key={`l-${i}`} className="flex items-center gap-2 p-2 bg-red-50 rounded">
                         <span className="font-medium">听力 第{i + 1}题:</span>
                         <span>你的答案: <span className="text-red-600 font-bold">{userAnswers.listening[i] || '未答'}</span></span>
-                        <span>正确答案: <span className="text-green-600 font-bold">{currentSet.answers.listening[i]}</span></span>
+                        <span>正确答案: <span className="text-green-600 font-bold">{answers.listening[i]}</span></span>
                       </div>
                     )
                   ))}
-                  {gradingResult.results.reading?.map((correct, i) => (
-                    !correct && (
+                  {gradingResult.results.reading?.map((correct, i) => {
+                    const qNum = i < 5 ? 26 + i : i < 10 ? 31 + (i - 5) : 36 + (i - 10)
+                    return !correct && (
                       <div key={`r-${i}`} className="flex items-center gap-2 p-2 bg-red-50 rounded">
-                        <span className="font-medium">阅读 第{i + 1}题:</span>
+                        <span className="font-medium">阅读 第{qNum}题:</span>
                         <span>你的答案: <span className="text-red-600 font-bold">{userAnswers.reading[i] || '未答'}</span></span>
-                        <span>正确答案: <span className="text-green-600 font-bold">{currentSet.answers.reading[i]}</span></span>
+                        <span>正确答案: <span className="text-green-600 font-bold">{answers.reading[i]}</span></span>
                       </div>
                     )
-                  ))}
+                  })}
                 </div>
               </div>
             )}
@@ -410,27 +471,79 @@ const ExamDetail = () => {
             {/* 阅读 */}
             <div className="mb-6">
               <h3 className="font-bold mb-3">阅读 (26-55)</h3>
-              <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-                {Array.from({ length: 30 }, (_, i) => (
-                  <div key={i} className="text-center">
-                    <div className="text-xs text-neutral-500 mb-1">{i + 26}</div>
-                    <div className="flex gap-1 justify-center">
-                      {['A', 'B', 'C', 'D'].map(opt => (
-                        <button
-                          key={opt}
-                          onClick={() => handleSelectAnswer('reading', i, opt)}
-                          className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
-                            userAnswers.reading[i] === opt
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-white border border-neutral-300 hover:border-blue-400'
-                          }`}
+              {/* Section A: 匹配题 Q26-30 (选项A-O) */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-neutral-600 mb-2">Section A 匹配 (26-30)</h4>
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const opts = 'ABCDEFGHIJKLMNO'.split('')
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500 w-8 text-right">{i + 26}</span>
+                        <select
+                          value={userAnswers.reading[i] || ''}
+                          onChange={(e) => handleSelectAnswer('reading', i, e.target.value)}
+                          className="border border-neutral-300 rounded px-2 py-1 text-sm"
                         >
-                          {opt}
-                        </button>
-                      ))}
+                          <option value="">--</option>
+                          {opts.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              {/* Section B: 匹配题 Q31-35 (选项A-J) */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-neutral-600 mb-2">Section B 匹配 (31-35)</h4>
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const opts = 'ABCDEFGHIJ'.split('')
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500 w-8 text-right">{i + 31}</span>
+                        <select
+                          value={userAnswers.reading[i + 5] || ''}
+                          onChange={(e) => handleSelectAnswer('reading', i + 5, e.target.value)}
+                          className="border border-neutral-300 rounded px-2 py-1 text-sm"
+                        >
+                          <option value="">--</option>
+                          {opts.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              {/* Section C: 选择题 Q36-55 (选项A-D) */}
+              <div>
+                <h4 className="text-sm font-medium text-neutral-600 mb-2">Section C 选择 (36-55)</h4>
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                  {Array.from({ length: 20 }, (_, i) => (
+                    <div key={i} className="text-center">
+                      <div className="text-xs text-neutral-500 mb-1">{i + 36}</div>
+                      <div className="flex gap-1 justify-center">
+                        {['A', 'B', 'C', 'D'].map(opt => (
+                          <button
+                            key={opt}
+                            onClick={() => handleSelectAnswer('reading', i + 10, opt)}
+                            className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                              userAnswers.reading[i + 10] === opt
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white border border-neutral-300 hover:border-blue-400'
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -438,21 +551,90 @@ const ExamDetail = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <h3 className="font-bold mb-2">写作</h3>
+                {writingData && (
+                  <div className="mb-2 p-2 bg-neutral-50 rounded text-xs text-neutral-600">
+                    <p className="font-medium mb-1">{writingData.title}</p>
+                    <p className="line-clamp-3">{writingData.topic}</p>
+                    {writingData.tips && (
+                      <p className="mt-1 text-neutral-400">提示: {writingData.tips}</p>
+                    )}
+                  </div>
+                )}
                 <textarea
                   value={userAnswers.writing}
                   onChange={(e) => handleSelectAnswer('writing', 0, e.target.value)}
                   placeholder="请输入你的作文..."
                   className="w-full h-32 p-3 border border-neutral-300 rounded-lg resize-none"
                 />
+                {writingData && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setShowModelEssay(!showModelEssay)}
+                      className="text-xs text-neutral-400 hover:text-black transition-colors"
+                    >
+                      {showModelEssay ? '隐藏范文' : '查看范文'}
+                    </button>
+                    {showModelEssay && (
+                      <div className="mt-2 p-3 bg-neutral-50 rounded-lg text-sm">
+                        <p className="font-medium mb-2">参考范文</p>
+                        <p className="whitespace-pre-line text-neutral-700">{writingData.modelEssay}</p>
+                        {writingData.keyPhrases?.length > 0 && (
+                          <div className="mt-2">
+                            <p className="font-medium text-xs text-neutral-500 mb-1">重点短语</p>
+                            <div className="flex flex-wrap gap-1">
+                              {writingData.keyPhrases.map((p, i) => (
+                                <span key={i} className="text-xs px-1.5 py-0.5 bg-white border border-neutral-200 rounded">{p}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <h3 className="font-bold mb-2">翻译</h3>
+                {translationData && (
+                  <div className="mb-2 p-2 bg-neutral-50 rounded text-xs text-neutral-600">
+                    <p className="line-clamp-4">{translationData.source}</p>
+                    {translationData.tips && (
+                      <p className="mt-1 text-neutral-400">提示: {translationData.tips}</p>
+                    )}
+                  </div>
+                )}
                 <textarea
                   value={userAnswers.translation}
                   onChange={(e) => handleSelectAnswer('translation', 0, e.target.value)}
                   placeholder="请输入你的翻译..."
                   className="w-full h-32 p-3 border border-neutral-300 rounded-lg resize-none"
                 />
+                {translationData && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setShowTranslation(!showTranslation)}
+                      className="text-xs text-neutral-400 hover:text-black transition-colors"
+                    >
+                      {showTranslation ? '隐藏参考译文' : '查看参考译文'}
+                    </button>
+                    {showTranslation && (
+                      <div className="mt-2 p-3 bg-neutral-50 rounded-lg text-sm">
+                        <p className="font-medium mb-2">参考译文</p>
+                        <p className="text-neutral-700">{translationData.translation}</p>
+                        {translationData.keyExpressions?.length > 0 && (
+                          <div className="mt-2">
+                            <p className="font-medium text-xs text-neutral-500 mb-1">重点表达</p>
+                            <div className="flex flex-wrap gap-1">
+                              {translationData.keyExpressions.map((e, i) => (
+                                <span key={i} className="text-xs px-1.5 py-0.5 bg-white border border-neutral-200 rounded">{e}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -534,12 +716,50 @@ const ExamDetail = () => {
           )}
         </div>
 
+        {/* Annotation Toolbar */}
+        <AnnotationToolbar
+          activeTool={activeTool}
+          onToolChange={setActiveTool}
+          strokeColor={strokeColor}
+          onColorChange={setStrokeColor}
+          strokeWidth={strokeWidth}
+          onWidthChange={setStrokeWidth}
+          onUndo={undo}
+          onClearPage={clearAllAnnotations}
+          canUndo={canUndo}
+          hasAnnotations={hasAnnotations}
+        />
+
         {/* PDF Viewer */}
         <div
           ref={scrollRef}
-          className="overflow-y-auto bg-neutral-200 p-2 sm:p-4"
+          className={`overflow-y-auto bg-neutral-200 p-2 sm:p-4 relative${isDrawingMode ? ' drawing-mode' : ''}`}
           style={{ height: mode === 'answer' ? 'calc(100vh - 500px)' : 'calc(100vh - 220px)' }}
+          onMouseUp={isDrawingMode ? undefined : handleTextSelection}
         >
+          {/* 文本选择浮动按钮 */}
+          {selectionPopup && (
+            <div
+              className="absolute z-30 bg-white rounded-lg shadow-lg border border-neutral-200 p-2 flex items-center gap-2"
+              style={{ left: `${selectionPopup.x}px`, top: `${selectionPopup.y}px`, transform: 'translate(-50%, -100%)' }}
+            >
+              <span className="text-sm font-medium text-neutral-700 max-w-32 truncate">{selectionPopup.text}</span>
+              <button
+                onClick={() => handleAddToVocabulary(selectionPopup.text, selectionPopup.context)}
+                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
+              >
+                添加到生词本
+              </button>
+              <button
+                onClick={() => setSelectionPopup(null)}
+                className="text-neutral-400 hover:text-neutral-600"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
           {currentSet?.pdfUrl ? (
             <div className="flex justify-center">
               <Document
@@ -560,19 +780,32 @@ const ExamDetail = () => {
                 }
               >
                 {Array.from(new Array(numPages), (el, index) => (
-                  <Page
-                    key={`page-${index + 1}`}
-                    pageNumber={index + 1}
-                    scale={pdfScale}
-                    width={Math.round(595 * pdfScale)}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                    loading={
-                      <div className="bg-white shadow-2xl flex items-center justify-center" style={{ width: `${Math.round(595 * pdfScale)}px`, height: `${Math.round(842 * pdfScale)}px` }}>
-                        <span className="text-sm text-neutral-400">加载页...</span>
-                      </div>
-                    }
-                  />
+                  <div key={`page-${index + 1}`} className="relative" style={{ marginBottom: '8px' }}>
+                    <Page
+                      pageNumber={index + 1}
+                      scale={pdfScale}
+                      width={Math.round(595 * pdfScale)}
+                      renderTextLayer={true}
+                      renderAnnotationLayer={false}
+                      loading={
+                        <div className="bg-white shadow-2xl flex items-center justify-center" style={{ width: `${Math.round(595 * pdfScale)}px`, height: `${Math.round(842 * pdfScale)}px` }}>
+                          <span className="text-sm text-neutral-400">加载页...</span>
+                        </div>
+                      }
+                    />
+                    <AnnotationCanvas
+                      pageNumber={index + 1}
+                      pageWidth={Math.round(595 * pdfScale)}
+                      pageHeight={Math.round(842 * pdfScale)}
+                      strokes={pageStrokes[index + 1] || []}
+                      isDrawingMode={isDrawingMode}
+                      activeTool={activeTool}
+                      strokeColor={strokeColor}
+                      strokeWidth={strokeWidth}
+                      onStrokeComplete={(stroke) => addStroke(index + 1, stroke)}
+                      pdfScale={pdfScale}
+                    />
+                  </div>
                 ))}
               </Document>
             </div>

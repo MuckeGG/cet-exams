@@ -1,1 +1,68 @@
 @import "tailwindcss";
+
+/* Dark mode variant - class strategy */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Dark mode base styles */
+@layer base {
+  .dark {
+    color-scheme: dark;
+  }
+  .dark body {
+    background-color: #171717;
+    color: #e5e5e5;
+  }
+}
+
+/* Dark mode utility overrides */
+@layer utilities {
+  .dark .bg-white { background-color: #171717 !important; }
+  .dark .bg-neutral-50 { background-color: #262626 !important; }
+  .dark .bg-neutral-100 { background-color: #2d2d2d !important; }
+  .dark .text-black { color: #e5e5e5 !important; }
+  .dark .text-neutral-700 { color: #d4d4d4 !important; }
+  .dark .text-neutral-600 { color: #a3a3a3 !important; }
+  .dark .text-neutral-500 { color: #a3a3a3 !important; }
+  .dark .text-neutral-400 { color: #737373 !important; }
+  .dark .border-neutral-200 { border-color: #404040 !important; }
+  .dark .border-neutral-300 { border-color: #525252 !important; }
+  .dark .hover\:border-black:hover { border-color: #737373 !important; }
+  .dark .hover\:text-black:hover { color: #e5e5e5 !important; }
+  .dark .hover\:bg-neutral-100:hover { background-color: #2d2d2d !important; }
+  .dark .hover\:bg-neutral-800:hover { background-color: #404040 !important; }
+  .dark .divide-neutral-200 > :not([hidden]) ~ :not([hidden]) { border-color: #404040 !important; }
+  .dark .shadow-sm { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3) !important; }
+  .dark .shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3) !important; }
+}
+
+/* PDF text layer - enable text selection */
+.react-pdf__Page__textContent {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+.react-pdf__Page__textContent span {
+  color: transparent !important;
+  position: absolute !important;
+  white-space: pre !important;
+  cursor: text !important;
+}
+
+.react-pdf__Page__textContent span::selection {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.react-pdf__Page__textContent span::-moz-selection {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+/* 标注模式 - 禁用文本层交互 */
+.drawing-mode .react-pdf__Page__textContent {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.annotation-canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}

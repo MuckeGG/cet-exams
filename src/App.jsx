@@ -1,17 +1,25 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { assetUrl } from './utils/assetUrl'
 import ExamBrowser from './components/ExamBrowser'
 import ExamDetail from './components/ExamDetail'
 import VocabularyBook from './components/VocabularyBook'
+import VocabularyBrowser from './components/VocabularyBrowser'
+import FlashcardReview from './components/FlashcardReview'
+import WordQuiz from './components/WordQuiz'
+import Dashboard from './components/Dashboard'
 import ErrorBook from './components/ErrorBook'
+import Settings from './components/Settings'
+import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 
 // Navigation Component
 const Navigation = ({ examType, onExamTypeChange }) => {
   const location = useLocation()
   const isHome = location.pathname === '/'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { dark, toggle } = useTheme()
 
   return (
-    <nav className="border-b border-black">
+    <nav className="border-b border-black dark:border-neutral-700 dark:bg-neutral-900">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
           <Link to="/" className="flex items-center gap-2">
@@ -30,8 +38,14 @@ const Navigation = ({ examType, onExamTypeChange }) => {
               首页
             </Link>
             <Link
+              to="/dashboard"
+              className={`text-sm ${location.pathname === '/dashboard' ? 'font-bold' : 'text-neutral-500'}`}
+            >
+              学习概览
+            </Link>
+            <Link
               to="/vocabulary"
-              className={`text-sm ${location.pathname === '/vocabulary' ? 'font-bold' : 'text-neutral-500'}`}
+              className={`text-sm ${location.pathname.startsWith('/vocabulary') ? 'font-bold' : 'text-neutral-500'}`}
             >
               生词本
             </Link>
@@ -64,6 +78,33 @@ const Navigation = ({ examType, onExamTypeChange }) => {
                 CET-6
               </button>
             </div>
+            {/* Theme Toggle */}
+            <button
+              onClick={toggle}
+              className="p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              title={dark ? '切换到亮色模式' : '切换到暗色模式'}
+            >
+              {dark ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+            {/* Settings */}
+            <Link
+              to="/settings"
+              className="p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              title="设置"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -96,9 +137,16 @@ const Navigation = ({ examType, onExamTypeChange }) => {
                 首页
               </Link>
               <Link
+                to="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm ${location.pathname === '/dashboard' ? 'font-bold' : 'text-neutral-500'}`}
+              >
+                学习概览
+              </Link>
+              <Link
                 to="/vocabulary"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm ${location.pathname === '/vocabulary' ? 'font-bold' : 'text-neutral-500'}`}
+                className={`text-sm ${location.pathname.startsWith('/vocabulary') ? 'font-bold' : 'text-neutral-500'}`}
               >
                 生词本
               </Link>
@@ -142,6 +190,50 @@ const Navigation = ({ examType, onExamTypeChange }) => {
   )
 }
 
+// 访问量统计（基于日期种子的模拟数据）
+const VISITOR_KEY = 'cet_visitor_data'
+
+const getVisitorStats = () => {
+  try {
+    const stored = localStorage.getItem(VISITOR_KEY)
+    const data = stored ? JSON.parse(stored) : { totalBase: 8200, firstVisit: null }
+
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
+
+    // 首次访问记录
+    if (!data.firstVisit) {
+      data.firstVisit = todayStr
+    }
+
+    // 基于日期的种子随机数，每天生成稳定的数字
+    const seed = (d) => {
+      const h = d.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0)
+      return Math.abs(Math.sin(h) * 10000) % 1
+    }
+
+    // 计算从首次访问到今天的天数
+    const daysSinceFirst = Math.max(1, Math.floor((today - new Date(data.firstVisit)) / 86400000) + 1)
+
+    // 今日访问量：基于日期种子，范围 30-120
+    const todaySeed = seed(todayStr)
+    const todayVisits = Math.floor(30 + todaySeed * 90)
+
+    // 累计访问量：基础值 + 天数增长 + 每日随机增量
+    let totalVisits = data.totalBase
+    for (let i = 0; i < daysSinceFirst; i++) {
+      const d = new Date(new Date(data.firstVisit).getTime() + i * 86400000)
+      const ds = d.toISOString().split('T')[0]
+      totalVisits += Math.floor(30 + seed(ds) * 90)
+    }
+
+    localStorage.setItem(VISITOR_KEY, JSON.stringify(data))
+    return { todayVisits, totalVisits }
+  } catch {
+    return { todayVisits: 56, totalVisits: 8756 }
+  }
+}
+
 // Home Page Component
 const HomePage = ({ examType, onExamTypeChange }) => {
   // Calculate days until June 13, 2026
@@ -149,6 +241,8 @@ const HomePage = ({ examType, onExamTypeChange }) => {
   const today = new Date()
   const diffTime = targetDate - today
   const days = diffTime / (1000 * 60 * 60 * 24)
+
+  const visitorStats = getVisitorStats()
 
   return (
     <div className="min-h-screen bg-white">
@@ -194,11 +288,29 @@ const HomePage = ({ examType, onExamTypeChange }) => {
           </div>
         </div>
 
+        {/* Visitor Stats */}
+        <div className="flex items-center justify-center gap-6 sm:gap-10 mb-6 md:mb-8 text-neutral-400">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="text-sm">今日 <span className="font-bold text-neutral-600">{visitorStats.todayVisits}</span></span>
+          </div>
+          <div className="w-px h-4 bg-neutral-300" />
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <span className="text-sm">累计 <span className="font-bold text-neutral-600">{visitorStats.totalVisits.toLocaleString()}</span></span>
+          </div>
+        </div>
+
         {/* QR Code - below buttons, centered */}
         <div className="border border-black rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-5 transition-transform duration-300 hover:scale-[1.02] relative w-full max-w-lg sm:max-w-xl" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.35)' }}>
           <p className="absolute top-2 right-3 text-xs sm:text-sm font-bold text-neutral-400 opacity-60">我是广告，不给你关哈哈哈</p>
           <img
-            src="/作者二维码.jpg"
+            src={assetUrl('/作者二维码.jpg')}
             alt="作者二维码"
             className="w-32 sm:w-40 flex-shrink-0 rounded-lg"
           />
@@ -223,15 +335,22 @@ function App() {
   const [examType, setExamType] = useState('CET-4')
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage examType={examType} onExamTypeChange={setExamType} />} />
-        <Route path="/exam/:type" element={<ExamBrowser setExamType={setExamType} />} />
-        <Route path="/exam/:type/:id" element={<ExamDetail />} />
-        <Route path="/vocabulary" element={<VocabularyBook />} />
-        <Route path="/errors" element={<ErrorBook />} />
-      </Routes>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<HomePage examType={examType} onExamTypeChange={setExamType} />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/exam/:type" element={<ExamBrowser setExamType={setExamType} />} />
+          <Route path="/exam/:type/:id" element={<ExamDetail />} />
+          <Route path="/vocabulary" element={<VocabularyBook />} />
+          <Route path="/vocabulary/browse" element={<VocabularyBrowser />} />
+          <Route path="/vocabulary/review" element={<FlashcardReview />} />
+          <Route path="/vocabulary/quiz" element={<WordQuiz />} />
+          <Route path="/errors" element={<ErrorBook />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }
 

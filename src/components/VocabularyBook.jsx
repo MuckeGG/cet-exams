@@ -1,15 +1,27 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { getVocabulary, removeWord, clearVocabulary, exportVocabulary } from '../utils/vocabulary'
+import { getVocabulary, removeWord, clearVocabulary, exportVocabulary, updateWordDictData } from '../utils/vocabulary'
 import { getPaperById } from '../data/examPapers'
+import { lookupWord } from '../utils/dictionary'
 
 const VocabularyBook = () => {
   const [vocabulary, setVocabulary] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [lookingUp, setLookingUp] = useState({})
 
   useEffect(() => {
     setVocabulary(getVocabulary())
   }, [])
+
+  const handleLookup = async (word) => {
+    setLookingUp(prev => ({ ...prev, [word]: true }))
+    const dictData = await lookupWord(word)
+    if (dictData) {
+      updateWordDictData(word, dictData)
+      setVocabulary(getVocabulary())
+    }
+    setLookingUp(prev => ({ ...prev, [word]: false }))
+  }
 
   const handleRemove = (word) => {
     if (removeWord(word)) {
@@ -64,10 +76,28 @@ const VocabularyBook = () => {
               <p className="text-neutral-500 text-xs sm:text-sm">共 {vocabulary.length} 个收藏单词</p>
             </div>
             <div className="flex items-center gap-2">
+              <Link
+                to="/vocabulary/browse"
+                className="px-3 sm:px-4 py-2 text-sm bg-black text-white rounded hover:bg-neutral-800 transition-colors"
+              >
+                核心词汇库
+              </Link>
+              <Link
+                to="/vocabulary/review"
+                className="px-3 sm:px-4 py-2 text-sm border border-neutral-300 rounded hover:border-black transition-colors"
+              >
+                卡片复习
+              </Link>
+              <Link
+                to="/vocabulary/quiz"
+                className="px-3 sm:px-4 py-2 text-sm border border-neutral-300 rounded hover:border-black transition-colors"
+              >
+                单词测验
+              </Link>
               <button
                 onClick={handleExport}
                 disabled={vocabulary.length === 0}
-                className="px-3 sm:px-4 py-2 text-sm bg-black text-white rounded hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
+                className="px-3 sm:px-4 py-2 text-sm border border-neutral-300 rounded hover:border-black disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 导出生词
               </button>
@@ -117,16 +147,37 @@ const VocabularyBook = () => {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
                     <span className="text-lg font-bold">{item.word}</span>
+                    {item.phonetic && (
+                      <span className="text-sm text-neutral-400">{item.phonetic}</span>
+                    )}
                     {item.paperId && (
                       <span className="text-xs px-2 py-0.5 bg-neutral-100 text-neutral-500 rounded">
                         {getPaperInfo(item.paperId)}
                       </span>
                     )}
                   </div>
-                  {item.context && (
-                    <p className="text-sm text-neutral-500 mb-1">"{item.context}"</p>
+                  {item.definitions?.length > 0 ? (
+                    <div className="mt-1 space-y-0.5">
+                      {item.definitions.slice(0, 3).map((def, i) => (
+                        <p key={i} className="text-sm text-neutral-600">
+                          {def.partOfSpeech && <span className="text-neutral-400 italic mr-1">[{def.partOfSpeech}]</span>}
+                          {def.definition}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleLookup(item.word)}
+                      disabled={lookingUp[item.word]}
+                      className="mt-1 text-xs text-neutral-400 hover:text-black transition-colors disabled:opacity-50"
+                    >
+                      {lookingUp[item.word] ? '查询中...' : '点击查询释义'}
+                    </button>
                   )}
-                  <p className="text-xs text-neutral-400">
+                  {item.context && (
+                    <p className="text-sm text-neutral-500 mt-1 italic">"{item.context}"</p>
+                  )}
+                  <p className="text-xs text-neutral-400 mt-1">
                     添加于 {new Date(item.addedAt).toLocaleDateString('zh-CN')}
                   </p>
                 </div>

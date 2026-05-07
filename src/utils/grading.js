@@ -54,30 +54,32 @@ export const getGradingHistory = (paperId) => {
 
 /**
  * 计算得分（710分制）
- * 听力：25题，每题3.55分 = 88.75分
- * 阅读：30题，每题3.55分 = 106.5分
+ * 听力：25题 = 88.75分
+ * 阅读：20题(5匹配+5匹配+10选择) = 106.5分
  * 写作：106.5分
  * 翻译：106.5分
  */
 export const calculateScore = (results, type = 'total') => {
   if (!results) return 0
 
-  const听力Total = 88.75
-  const阅读Total = 106.5
-  const写作Total = 106.5
-  const翻译Total = 106.5
-  const total = 710
+  const listeningTotal = 88.75
+  const readingTotal = 106.5
+  const writingTotal = 106.5
+  const translationTotal = 106.5
 
-  const correctListening = results.listening?.filter((r, i) => r === true).length || 0
-  const correctReading = results.reading?.filter((r, i) => r === true).length || 0
+  const totalListening = results.listening?.length || 25
+  const totalReading = results.reading?.length || 20
+
+  const correctListening = results.listening?.filter(r => r === true).length || 0
+  const correctReading = results.reading?.filter(r => r === true).length || 0
   // 写作和翻译为主观题，无法自动批改，按满分计
   const correctWriting = results.writing === 'marked' ? 1 : 0
   const correctTranslation = results.translation === 'marked' ? 1 : 0
 
-  const listeningScore = (correctListening / 25) * 听力Total
-  const readingScore = (correctReading / 30) * 阅读Total
-  const writingScore = correctWriting * 写作Total
-  const translationScore = correctTranslation * 翻译Total
+  const listeningScore = (correctListening / totalListening) * listeningTotal
+  const readingScore = (correctReading / totalReading) * readingTotal
+  const writingScore = correctWriting * writingTotal
+  const translationScore = correctTranslation * translationTotal
 
   if (type === 'listening') return Math.round(listeningScore)
   if (type === 'reading') return Math.round(readingScore)
