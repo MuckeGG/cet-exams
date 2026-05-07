@@ -201,11 +201,16 @@ const HomePage = ({ examType, onExamTypeChange }) => {
 
   const [visitorStats, setVisitorStats] = useState({ today: 0, total: 0 })
   useEffect(() => {
-    fetch('/api/visitor')
+    const todayStr = new Date().toISOString().split('T')[0]
+    const lastVisit = localStorage.getItem('cet_last_visit')
+    const shouldCount = lastVisit !== todayStr
+
+    fetch(`/api/visitor${shouldCount ? '' : '?count=false'}`)
       .then(r => r.json())
       .then(data => {
         if (data && typeof data.today === 'number') {
           setVisitorStats({ today: data.today, total: data.total })
+          if (shouldCount) localStorage.setItem('cet_last_visit', todayStr)
         }
       })
       .catch(() => {})
@@ -262,14 +267,14 @@ const HomePage = ({ examType, onExamTypeChange }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
             </svg>
-            <span className="text-sm">今日 <span className="font-bold text-neutral-600">{visitorStats.today}</span></span>
+            <span className="text-sm">今日学习人数：<span className="font-bold text-neutral-600">{visitorStats.today}</span></span>
           </div>
           <div className="w-px h-4 bg-neutral-300" />
           <div className="flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            <span className="text-sm">累计 <span className="font-bold text-neutral-600">{visitorStats.total.toLocaleString()}</span></span>
+            <span className="text-sm">总访问次数：<span className="font-bold text-neutral-600">{visitorStats.total.toLocaleString()}</span></span>
           </div>
         </div>
 
