@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Component } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
 import { assetUrl } from './utils/assetUrl'
 import ExamBrowser from './components/ExamBrowser'
@@ -295,11 +295,33 @@ const HomePage = ({ examType, onExamTypeChange }) => {
   )
 }
 
+// Error Boundary
+class ErrorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 40, fontFamily: 'monospace' }}>
+          <h1 style={{ color: 'red' }}>出错了</h1>
+          <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 16, borderRadius: 8 }}>
+            {this.state.error.message}
+            {'\n\n'}
+            {this.state.error.stack}
+          </pre>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 // App with Router
 function App() {
   const [examType, setExamType] = useState('CET-4')
 
   return (
+    <ErrorBoundary>
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
@@ -316,6 +338,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
+    </ErrorBoundary>
   )
 }
 
