@@ -361,23 +361,6 @@ const HomePage = ({ examType, onExamTypeChange }) => {
             </div>
           </a>
         </div>
-
-        {/* QR Code - below buttons, centered */}
-        <div className="border border-black rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-5 transition-transform duration-300 hover:scale-[1.02] relative w-full max-w-lg sm:max-w-xl" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.35)' }}>
-          <p className="absolute top-2 right-3 text-xs sm:text-sm font-bold text-neutral-400 opacity-60">我是广告，不给你关哈哈哈</p>
-          <img
-            src={assetUrl('/作者二维码.jpg')}
-            alt="作者二维码"
-            className="w-32 sm:w-40 flex-shrink-0 rounded-lg"
-          />
-          <div className="text-center sm:text-left">
-            <p className="text-lg sm:text-2xl font-bold text-red-600 mb-2">需要打印试卷吗？</p>
-            <p className="text-base sm:text-xl font-bold text-neutral-800">广州大学（桂花岗校区）打印</p>
-            <p className="text-sm sm:text-lg font-bold text-neutral-700 mt-1">黑白单面 0.2元/张</p>
-            <p className="text-sm sm:text-lg font-bold text-neutral-700">黑白双面 0.3元/张</p>
-            <p className="text-sm sm:text-lg font-bold text-neutral-700">可配送到宿舍，或自取</p>
-          </div>
-        </div>
       </section>
 
     </div>
@@ -415,4 +398,22 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage examType={examType} onExamTypeChange={setExamType} />} />
-          <Route path="/dashboa
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/exam/:type" element={<ExamBrowser setExamType={setExamType} />} />
+          <Route path="/exam/:type/:id" element={<ExamDetail />} />
+          <Route path="/vocabulary" element={<VocabularyBook />} />
+          <Route path="/vocabulary/browse" element={<VocabularyBrowser />} />
+          <Route path="/vocabulary/review" element={<FlashcardReview />} />
+          <Route path="/vocabulary/quiz" element={<WordQuiz />} />
+          <Route path="/review" element={<ReviewMaterials />} />
+          <Route path="/errors" element={<ErrorBook />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
+    </ErrorBoundary>
+  )
+}
+
+export default App
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
