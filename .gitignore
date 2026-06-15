@@ -27,3 +27,10 @@ public/
 *.njsproj
 *.sln
 *.sw?
+
+server-assets/
+.claude/
+.env.production
+.vercelignore
+
+.vercel
