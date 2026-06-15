@@ -205,13 +205,30 @@ const Navigation = ({ examType, onExamTypeChange }) => {
   )
 }
 
+// 计算某月第N个星期六
+const nthSaturday = (year, month, n) => {
+  const d = new Date(year, month, 1)
+  const firstSat = (6 - d.getDay() + 1) % 7 || 7
+  return new Date(year, month, firstSat + (n - 1) * 7)
+}
+
+// 获取下一次CET考试日期（6月/12月第2个星期六）
+const getNextExamDate = () => {
+  const now = new Date()
+  const candidates = []
+  for (let y = now.getFullYear(); y <= now.getFullYear() + 1; y++) {
+    candidates.push(nthSaturday(y, 5, 2))  // 6月
+    candidates.push(nthSaturday(y, 11, 2)) // 12月
+  }
+  return candidates.find(d => d > now) || candidates[candidates.length - 1]
+}
+
 // Home Page Component
 const HomePage = ({ examType, onExamTypeChange }) => {
-  // Calculate days until June 13, 2026
-  const targetDate = new Date('2026-06-13')
+  const [targetDate] = useState(getNextExamDate)
   const today = new Date()
-  const diffTime = targetDate - today
-  const days = diffTime / (1000 * 60 * 60 * 24)
+  const days = Math.max(0, (targetDate - today) / (1000 * 60 * 60 * 24))
+  const examDateStr = `${targetDate.getFullYear()}年${targetDate.getMonth() + 1}月${targetDate.getDate()}日`
 
   const [visitorStats, setVisitorStats] = useState({ today: 0, total: 0 })
   const [visitorLoaded, setVisitorLoaded] = useState(false)
@@ -295,9 +312,10 @@ const HomePage = ({ examType, onExamTypeChange }) => {
 
           {/* Countdown */}
           <div className="border-2 border-black rounded-2xl px-3 sm:px-4 py-2 text-center flex items-center gap-2 sm:gap-3 transition-transform duration-300 hover:scale-[1.02] w-full sm:w-auto justify-center" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
-            <span className="text-xs sm:text-sm font-bold">距下次CET考试还有</span>
+            <span className="text-xs sm:text-sm font-bold">距CET考试还有</span>
             <span className="text-xl sm:text-2xl font-bold">{days.toFixed(1)}</span>
             <span className="text-xs sm:text-sm font-bold">天</span>
+            <span className="text-xs text-neutral-500 font-medium">（{examDateStr}）</span>
           </div>
         </div>
 
@@ -397,21 +415,4 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage examType={examType} onExamTypeChange={setExamType} />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/exam/:type" element={<ExamBrowser setExamType={setExamType} />} />
-          <Route path="/exam/:type/:id" element={<ExamDetail />} />
-          <Route path="/vocabulary" element={<VocabularyBook />} />
-          <Route path="/vocabulary/browse" element={<VocabularyBrowser />} />
-          <Route path="/vocabulary/review" element={<FlashcardReview />} />
-          <Route path="/vocabulary/quiz" element={<WordQuiz />} />
-          <Route path="/review" element={<ReviewMaterials />} />
-          <Route path="/errors" element={<ErrorBook />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </BrowserRouter>
-    </ThemeProvider>
-    </ErrorBoundary>
-  )
-}
-
-export default App
+          <Route path="/dashboa
