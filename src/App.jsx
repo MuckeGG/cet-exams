@@ -10,6 +10,7 @@ import WordQuiz from './components/WordQuiz'
 import Dashboard from './components/Dashboard'
 import ErrorBook from './components/ErrorBook'
 import Settings from './components/Settings'
+import ReviewMaterials from './components/ReviewMaterials'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 
 // Navigation Component
@@ -55,6 +56,12 @@ const Navigation = ({ examType, onExamTypeChange }) => {
               className={`text-sm ${location.pathname === '/errors' ? 'font-bold' : 'text-neutral-500'}`}
             >
               错题本
+            </Link>
+            <Link
+              to="/review"
+              className={`text-sm ${location.pathname === '/review' ? 'font-bold' : 'text-neutral-500'}`}
+            >
+              复习资料
             </Link>
             {/* CET-4 / CET-6 Toggle */}
             <div className="flex items-center gap-1 bg-neutral-100 rounded p-0.5">
@@ -157,6 +164,13 @@ const Navigation = ({ examType, onExamTypeChange }) => {
                 className={`text-sm ${location.pathname === '/errors' ? 'font-bold' : 'text-neutral-500'}`}
               >
                 错题本
+              </Link>
+              <Link
+                to="/review"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm ${location.pathname === '/review' ? 'font-bold' : 'text-neutral-500'}`}
+              >
+                复习资料
               </Link>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-neutral-500">考试类型:</span>
@@ -307,6 +321,29 @@ const HomePage = ({ examType, onExamTypeChange }) => {
         </div>
         )}
 
+        {/* Python Review Entry */}
+        <div className="mb-6 md:mb-8 w-full max-w-lg sm:max-w-xl">
+          <a
+            href="/python-review.html"
+            className="group block border-2 border-neutral-200 rounded-xl p-5 sm:p-6 hover:border-black transition-all duration-300 hover:shadow-lg"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-700 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-lg font-bold mb-1">Python 期末复习资料</h3>
+                <p className="text-sm text-neutral-500">Python编程实践课程期末考试知识点总结，涵盖基础语法、数据结构、函数、面向对象等全部章节</p>
+              </div>
+              <svg className="w-5 h-5 text-neutral-400 group-hover:text-black group-hover:translate-x-1 transition-all duration-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </a>
+        </div>
+
         {/* QR Code - below buttons, centered */}
         <div className="border border-black rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-5 transition-transform duration-300 hover:scale-[1.02] relative w-full max-w-lg sm:max-w-xl" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.35)' }}>
           <p className="absolute top-2 right-3 text-xs sm:text-sm font-bold text-neutral-400 opacity-60">我是广告，不给你关哈哈哈</p>
@@ -367,6 +404,7 @@ function App() {
           <Route path="/vocabulary/browse" element={<VocabularyBrowser />} />
           <Route path="/vocabulary/review" element={<FlashcardReview />} />
           <Route path="/vocabulary/quiz" element={<WordQuiz />} />
+          <Route path="/review" element={<ReviewMaterials />} />
           <Route path="/errors" element={<ErrorBook />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
